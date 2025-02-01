@@ -3,9 +3,7 @@ import axios from 'axios';
 import * as fabric from 'fabric'; // v6
 import { useEffect, useRef, useState } from 'react';
 
-import reactLogo from './assets/react.svg';
-import viteLogo from '/vite.svg';
-import './App.css';
+import './App.scss';
 
 // video thumbnail: https://commandcodes.medium.com/how-to-capture-video-thumbnails-using-javascript-a-javascript-developers-guide-6b2cc4d5a498
 
@@ -23,9 +21,16 @@ const COLUMNS = [
     dataIndex: "b64"
   },
   {
-    title: "Response",
+    title: "class - confidence",
     dataIndex: "response",
-    render: JSON.stringify
+    render: (responses: any[]) => responses.map(response => {
+      return (
+        <div>
+          <span>{response.class_name}</span>
+          <span className="ms-1">{response.confidence.toFixed(2)}</span>
+        </div>
+      )
+    })
   }
 
 ]
@@ -33,15 +38,16 @@ const COLUMNS = [
 function App() {
   // states
   const [base64, setBase64]             = useState("");
-  const [confidence, setConfidence]     = useState<number>(0.4); // originally 0.7
+  const [confidence, setConfidence]     = useState<number>(0.3); // originally 0.7
   const [dimensions, setDimensions]     = useState<any>(null);
   const [iou, setIou]                   = useState<number>(0.5);
-  const [response, setResponse]         = useState<Object>({});
+  const [response, setResponse]         = useState<any[]>([]);
   const [timeInterval, setTimeInterval] = useState(1000);
   const [predictions, setPredictions]   = useState<any[]>([]);
   
   // refs
   const canvasEl = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<fabric.Canvas>();
   const context  = useRef<CanvasRenderingContext2D | null>(null);
   const interval = useRef<number>(-1);
   const videoEl  = useRef<HTMLVideoElement>(null);
@@ -61,10 +67,10 @@ function App() {
   // draw the Fabric canvas according to video dimensions
   useEffect(() => {
     if (canvasEl.current && dimensions) {
-      const canvas = new fabric.Canvas(canvasEl.current, dimensions);
-      canvas.backgroundColor = "red";
-      canvas.renderAll();
-      context.current = canvas.getContext();
+      canvasRef.current = new fabric.Canvas(canvasEl.current, dimensions);
+      canvasRef.current.backgroundColor = "red";
+      canvasRef.current.renderAll();
+      context.current = canvasRef.current.getContext();
     }
   }, [dimensions]);
 
@@ -88,6 +94,15 @@ function App() {
     }
   }, [dimensions, timeInterval]);
 
+  useEffect(() => {
+    if (videoEl.current) {
+      console.log(93, 'draw', response);
+      response.forEach(box => {
+        console.log(96, box);
+      });
+    }
+  }, [response]);
+
   // request to API
   useEffect(() => {
     (async () => {
@@ -109,51 +124,48 @@ function App() {
   const data: any[] = predictions.length > 10 ? predictions.slice(-10) : predictions;
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="w-100">
+      <div className="w-100 d-flex justify-content-center">
+        <div className="w-100 main d-flex flex-column align-items-center">
+          <h1 className="my-3">Overview AI's assignment</h1>
+          <video controls ref={videoEl} crossOrigin="anonymous">
+            <source src="https://fabricjs.com/site_assets/dizzy.mp4" />
+          </video>
+          <div className="mt-5 box-container">
+            <img src={base64} />
+            {response.map(response => <div style={{
+              ...response.box as React.CSSProperties,
+            }} className="box">{response.class_name}</div>)}
+          </div>
+          <canvas style={{ display: "none" }} ref={canvasEl}/>
+          <Form className="w-100 mt-5">
+
+            <Form.Item label="Time interval">
+              <Input value={timeInterval} type="number"
+                onChange={e => setTimeInterval(parseInt(e.target.value))} />
+            </Form.Item>
+
+            <Form.Item label="IoU">
+              <Input value={iou} type="number" min={0}
+                onChange={e => setIou(parseFloat(e.target.value))} />
+            </Form.Item>
+
+            <Form.Item label="Confidence">
+              <Input value={confidence} type="number" min={0}
+                onChange={e => setConfidence(parseFloat(e.target.value))} />
+            </Form.Item>
+
+            <Form.Item label="Algorithm's response">
+              <Input.TextArea value={JSON.stringify(response)} rows={10}  />
+            </Form.Item>
+
+          </Form>
+          {/* <div>{JSON.stringify(response)}</div> */}
+          <Table columns={COLUMNS} dataSource={data} />
+        </div>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <video controls ref={videoEl} crossOrigin="anonymous">
-          <source src="https://fabricjs.com/site_assets/dizzy.mp4" />
-        </video>
-        <canvas ref={canvasEl}/>
-        <Form>
-
-          <Form.Item label="Time interval">
-            <Input value={timeInterval} type="number"
-              onChange={e => setTimeInterval(parseInt(e.target.value))} />
-          </Form.Item>
-
-          <Form.Item label="IoU">
-            <Input value={iou} type="number" min={0}
-              onChange={e => setIou(parseFloat(e.target.value))} />
-          </Form.Item>
-
-          <Form.Item label="Confidence">
-            <Input value={confidence} type="number" min={0}
-              onChange={e => setConfidence(parseFloat(e.target.value))} />
-          </Form.Item>
-
-          <Form.Item label="Algorithm's response">
-            <Input.TextArea value={JSON.stringify(response)} rows={10}  />
-          </Form.Item>
-
-        </Form>
-        {/* <div>{JSON.stringify(response)}</div> */}
-        <Table columns={COLUMNS} dataSource={data} />
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </div>
+  );
 }
 
 export default App

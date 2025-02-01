@@ -1,0 +1,17 @@
+.main {
+  max-width: 610px;
+}
+
+.box-container {
+  position: relative;
+  .box {
+    border: 3px solid green;
+    position: absolute;
+    color: green;
+    font-weight: bold;
+  }
+}
+
+.canvas-container {
+  display: none;
+}
